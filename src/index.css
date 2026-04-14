@@ -15,9 +15,9 @@
   --primary: #2196F3;
   --secondary: #4CAF50;
   --accent: #FFEB3B;
-  --glass-bg: rgba(255, 255, 255, 0.1);
-  --glass-border: rgba(255, 255, 255, 0.2);
-  --glass-blur: 12px;
+  --glass-bg: rgba(15, 23, 42, 0.75); /* Darker, more solid Slate 900 tint */
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-blur: 16px;
 }
 
 body {
