@@ -11,18 +11,27 @@ const GRAVITY = 20;
 const WORLD_LENGTH = 200;
 const WORLD_WIDTH = 30; // -15 to 15
 
+export type PlayerAnimation = 'Idle' | 'Walk' | 'Run';
+
 export const usePlayerMovement = () => {
   const setPlayerPosition = useGameStore((state) => state.setPlayerPosition);
+  const setPlayerAnimation = useGameStore((state) => state.setPlayerAnimation);
+  const setPlayerRotation = useGameStore((state) => state.setPlayerRotation);
+  
   const playerPosition = useGameStore((state) => state.playerPosition);
+  const playerAnimation = useGameStore((state) => state.playerAnimation);
+  const playerRotation = useGameStore((state) => state.playerRotation);
   const activeCheckpoint = useGameStore((state) => state.activeCheckpoint);
 
   const keys = useRef<{ [key: string]: boolean }>({});
   const verticalVelocity = useRef(0);
   const isGrounded = useRef(true);
+  const isHit = useRef(false);
 
   // Temporary vectors for movement calculation to avoid GC
   const forward = new THREE.Vector3();
   const right = new THREE.Vector3();
+  const moveVec = new THREE.Vector3();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => { keys.current[e.key.toLowerCase()] = true; };
@@ -52,6 +61,8 @@ export const usePlayerMovement = () => {
     const moveZInput = (keys.current['w'] || keys.current['arrowup'] ? 1 : 0) + 
                        (keys.current['s'] || keys.current['arrowdown'] ? -1 : 0);
 
+    moveVec.set(0, 0, 0);
+
     if (moveXInput !== 0 || moveZInput !== 0) {
       // Get camera direction
       state.camera.getWorldDirection(forward);
@@ -63,20 +74,13 @@ export const usePlayerMovement = () => {
       right.y = 0;
       right.normalize();
 
-      // Calculate movement vector: Forward input moves along 'forward' vector, side input along 'right' vector
-      // Note: moveXInput = 1 for 'A' (left), but in THREE right vector points right. 
-      // If we move along 'right * moveXInput', and moveXInput is 1, we go right.
-      // So 'A' (Left) should be -1 and 'D' (Right) should be 1?
-      // Wait, user said earlier A was right, D was left. I corrected it by making A=1, D=-1.
-      // Let's check: moveXInput = 1 (A/Left). right * 1 = move right. Still inverted for A.
-      
       // Corrected Input Mapping for Camera Space:
       const leftInput = (keys.current['a'] || keys.current['arrowleft'] ? 1 : 0);
       const rightInput = (keys.current['d'] || keys.current['arrowright'] ? 1 : 0);
       const upInput = (keys.current['w'] || keys.current['arrowup'] ? 1 : 0);
       const downInput = (keys.current['s'] || keys.current['arrowdown'] ? 1 : 0);
 
-      const moveVec = new THREE.Vector3()
+      moveVec
         .addScaledVector(forward, upInput - downInput)
         .addScaledVector(right, rightInput - leftInput)
         .normalize()
@@ -122,7 +126,7 @@ export const usePlayerMovement = () => {
       y = groundHeight;
     }
 
-    // Collision check against trees (moved here to prevent glitching)
+    // Collision check against trees
     const trees = useGameStore.getState().trees;
     let collision = false;
     const PLAYER_RADIUS = 0.5;
@@ -139,18 +143,51 @@ export const usePlayerMovement = () => {
       }
     }
 
-    // If collision, we should theoretically slide, but for now we revert or clamp
-    // Reverting x/z is safest if a collision is found in the final intended position
     if (collision) {
       x = playerPosition[0];
       z = playerPosition[2];
     }
 
-    // 4. Update state
+    // 4. Update position in store
     if (x !== playerPosition[0] || y !== playerPosition[1] || z !== playerPosition[2]) {
       setPlayerPosition([x, y, z]);
     }
+
+    // 5. Determine animation and rotation
+    const isMoving = moveXInput !== 0 || moveZInput !== 0;
+    
+    // Default animation
+    let animation = isMoving ? (isSprinting ? 'Run' : 'Walk') : 'Idle';
+    
+    // Override with Hit animation if colliding
+    if (collision && !isHit.current) {
+      isHit.current = true;
+      setPlayerAnimation('Hit');
+      
+      // Reset hit state after animation plays
+      setTimeout(() => {
+        isHit.current = false;
+      }, 800);
+    }
+    
+    // Only update normal animations if we aren't in the middle of a hit reaction
+    if (!isHit.current) {
+      if (animation !== playerAnimation) {
+        setPlayerAnimation(animation);
+      }
+    }
+
+    if (isMoving && !isHit.current) {
+      const rotation = Math.atan2(moveVec.x, moveVec.z);
+      if (rotation !== playerRotation) {
+        setPlayerRotation(rotation);
+      }
+    }
   });
 
-  return playerPosition;
+  return { 
+    position: playerPosition, 
+    animation: playerAnimation, 
+    rotation: playerRotation 
+  };
 };

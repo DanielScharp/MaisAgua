@@ -15,6 +15,8 @@ export interface TreeData {
 interface GameState {
   // Player state
   playerPosition: [number, number, number];
+  playerAnimation: string;
+  playerRotation: number;
   progress: number; // 0 to 1
   
   // World state
@@ -30,6 +32,8 @@ interface GameState {
   
   // Actions
   setPlayerPosition: (position: [number, number, number]) => void;
+  setPlayerAnimation: (animation: string) => void;
+  setPlayerRotation: (rotation: number) => void;
   setTrees: (trees: TreeData[]) => void;
   donate: (amount: number) => void;
   activateCheckpoint: (checkpoint: CheckpointData) => void;
@@ -41,6 +45,8 @@ const DONATION_GOAL = 1000;
 
 export const useGameStore = create<GameState>((set) => ({
   playerPosition: [0, 0, 0],
+  playerAnimation: 'Idle',
+  playerRotation: 0,
   progress: 0,
   trees: [],
   donationTotal: 0,
@@ -57,6 +63,10 @@ export const useGameStore = create<GameState>((set) => ({
       progress: newProgress 
     };
   }),
+
+  setPlayerAnimation: (animation) => set({ playerAnimation: animation }),
+  
+  setPlayerRotation: (rotation) => set({ playerRotation: rotation }),
 
   setTrees: (trees) => set({ trees }),
 
